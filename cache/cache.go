@@ -1,10 +1,22 @@
-package cache
-
-// TODO: Add licensing boilerplate
+// Copyright 2015 The Cayley Authors. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // This package implements an adaptive, memory-bounded cache based on CART
 // cf. Bansal, Sorav, and Dharmendra S. Modha.
 //     "CAR: Clock with Adaptive Replacement." FAST. Vol. 4. 2004.
+package cache
+
 import (
 	"container/list"
 	"fmt"
@@ -15,7 +27,26 @@ import (
 	"time"
 )
 
-type cache struct {
+// Defined for convenience/clarity
+type emptySignal struct{}
+
+type Materializer interface {
+	// Materialize iteratively produces graph.Values and returns false when there
+	// are either no more values or upon error
+	Materialize() (graph.Value, bool)
+
+	// Close informs the caching system that you're done with a materializer
+	// and that memory may be freed-- materializers must not be used after Close()
+	Close()
+
+	// Error produces nil on successful operation or the latest valid error
+	// Materializers must return nil again once all errors have been resolved
+	Error() error
+}
+
+// The underlying caching data structure. For more information on the actual
+// working machinery, please see runners.go (for cache runners) and request.go
+type Cache struct {
 	timeout   time.Duration
 	sizeBytes int64
 
