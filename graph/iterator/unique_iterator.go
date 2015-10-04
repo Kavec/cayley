@@ -6,25 +6,18 @@ import (
 
 // Unique iterator removes duplicate values from it's subiterator.
 type Unique struct {
-	uid      uint64
-	tags     graph.Tagger
+	Base
 	subIt    graph.Iterator
-	result   graph.Value
 	runstats graph.IteratorStats
-	err      error
 	seen     map[graph.Value]bool
 }
 
 func NewUnique(subIt graph.Iterator) *Unique {
 	return &Unique{
-		uid:   NextUID(),
+		Base:  NewBase(graph.Unique),
 		subIt: subIt,
 		seen:  make(map[graph.Value]bool),
 	}
-}
-
-func (it *Unique) UID() uint64 {
-	return it.uid
 }
 
 // Reset resets the internal iterators and the iterator itself.
@@ -34,18 +27,8 @@ func (it *Unique) Reset() {
 	it.seen = make(map[graph.Value]bool)
 }
 
-func (it *Unique) Tagger() *graph.Tagger {
-	return &it.tags
-}
-
 func (it *Unique) TagResults(dst map[string]graph.Value) {
-	for _, tag := range it.tags.Tags() {
-		dst[tag] = it.Result()
-	}
-
-	for tag, value := range it.tags.Fixed() {
-		dst[tag] = value
-	}
+	it.Base.TagResults(dst)
 
 	if it.subIt != nil {
 		it.subIt.TagResults(dst)
@@ -82,14 +65,6 @@ func (it *Unique) Next() bool {
 	return graph.NextLogOut(it, nil, false)
 }
 
-func (it *Unique) Err() error {
-	return it.err
-}
-
-func (it *Unique) Result() graph.Value {
-	return it.result
-}
-
 // Contains checks whether the passed value is part of the primary iterator,
 // which is irrelevant for uniqueness.
 func (it *Unique) Contains(val graph.Value) bool {
@@ -110,8 +85,6 @@ func (it *Unique) Close() error {
 	it.seen = nil
 	return it.subIt.Close()
 }
-
-func (it *Unique) Type() graph.Type { return graph.Unique }
 
 func (it *Unique) Optimize() (graph.Iterator, bool) {
 	newIt, optimized := it.subIt.Optimize()

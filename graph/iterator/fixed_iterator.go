@@ -30,12 +30,11 @@ import (
 // A Fixed iterator consists of it's values, an index (where it is in the process of Next()ing) and
 // an equality function.
 type Fixed struct {
-	uid       uint64
-	tags      graph.Tagger
+	Base
+
 	values    []graph.Value
 	lastIndex int
 	cmp       Equality
-	result    graph.Value
 }
 
 // Define the signature of an equality function.
@@ -49,36 +48,14 @@ func Identity(a, b graph.Value) bool {
 // Creates a new Fixed iterator with a custom comparator.
 func NewFixed(cmp Equality) *Fixed {
 	return &Fixed{
-		uid:    NextUID(),
+		Base:   NewBase(graph.Fixed),
 		values: make([]graph.Value, 0, 20),
 		cmp:    cmp,
 	}
 }
 
-func (it *Fixed) UID() uint64 {
-	return it.uid
-}
-
 func (it *Fixed) Reset() {
 	it.lastIndex = 0
-}
-
-func (it *Fixed) Close() error {
-	return nil
-}
-
-func (it *Fixed) Tagger() *graph.Tagger {
-	return &it.tags
-}
-
-func (it *Fixed) TagResults(dst map[string]graph.Value) {
-	for _, tag := range it.tags.Tags() {
-		dst[tag] = it.Result()
-	}
-
-	for tag, value := range it.tags.Fixed() {
-		dst[tag] = value
-	}
 }
 
 func (it *Fixed) Clone() graph.Iterator {
@@ -115,9 +92,6 @@ func (it *Fixed) Describe() graph.Description {
 	}
 }
 
-// Register this iterator as a Fixed iterator.
-func (it *Fixed) Type() graph.Type { return graph.Fixed }
-
 // Check if the passed value is equal to one of the values stored in the iterator.
 func (it *Fixed) Contains(v graph.Value) bool {
 	// Could be optimized by keeping it sorted or using a better datastructure.
@@ -143,23 +117,6 @@ func (it *Fixed) Next() bool {
 	it.result = out
 	it.lastIndex++
 	return graph.NextLogOut(it, out, true)
-}
-
-func (it *Fixed) Err() error {
-	return nil
-}
-
-func (it *Fixed) Result() graph.Value {
-	return it.result
-}
-
-func (it *Fixed) NextPath() bool {
-	return false
-}
-
-// No sub-iterators.
-func (it *Fixed) SubIterators() []graph.Iterator {
-	return nil
 }
 
 // Optimize() for a Fixed iterator is simple. Returns a Null iterator if it's empty

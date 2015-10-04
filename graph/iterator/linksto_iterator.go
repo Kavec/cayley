@@ -38,31 +38,24 @@ import (
 // for each node) the subiterator, and the direction the iterator comes from.
 // `next_it` is the tempoarary iterator held per result in `primary_it`.
 type LinksTo struct {
-	uid       uint64
-	tags      graph.Tagger
+	Base
 	qs        graph.QuadStore
 	primaryIt graph.Iterator
 	dir       quad.Direction
 	nextIt    graph.Iterator
-	result    graph.Value
 	runstats  graph.IteratorStats
-	err       error
 }
 
 // Construct a new LinksTo iterator around a direction and a subiterator of
 // nodes.
 func NewLinksTo(qs graph.QuadStore, it graph.Iterator, d quad.Direction) *LinksTo {
 	return &LinksTo{
-		uid:       NextUID(),
+		Base:      NewBase(graph.LinksTo),
 		qs:        qs,
 		primaryIt: it,
 		dir:       d,
 		nextIt:    &Null{},
 	}
-}
-
-func (it *LinksTo) UID() uint64 {
-	return it.uid
 }
 
 func (it *LinksTo) Reset() {
@@ -71,10 +64,6 @@ func (it *LinksTo) Reset() {
 		it.nextIt.Close()
 	}
 	it.nextIt = &Null{}
-}
-
-func (it *LinksTo) Tagger() *graph.Tagger {
-	return &it.tags
 }
 
 func (it *LinksTo) Clone() graph.Iterator {
@@ -88,13 +77,7 @@ func (it *LinksTo) Direction() quad.Direction { return it.dir }
 
 // Tag these results, and our subiterator's results.
 func (it *LinksTo) TagResults(dst map[string]graph.Value) {
-	for _, tag := range it.tags.Tags() {
-		dst[tag] = it.Result()
-	}
-
-	for tag, value := range it.tags.Fixed() {
-		dst[tag] = value
-	}
+	it.Base.TagResults(dst)
 
 	it.primaryIt.TagResults(dst)
 }
@@ -180,14 +163,6 @@ func (it *LinksTo) Next() bool {
 	return it.Next()
 }
 
-func (it *LinksTo) Err() error {
-	return it.err
-}
-
-func (it *LinksTo) Result() graph.Value {
-	return it.result
-}
-
 // Close closes the iterator.  It closes all subiterators it can, but
 // returns the first error it encounters.
 func (it *LinksTo) Close() error {
@@ -209,9 +184,6 @@ func (it *LinksTo) NextPath() bool {
 	}
 	return ok
 }
-
-// Register the LinksTo.
-func (it *LinksTo) Type() graph.Type { return graph.LinksTo }
 
 // Return a guess as to how big or costly it is to next the iterator.
 func (it *LinksTo) Stats() graph.IteratorStats {

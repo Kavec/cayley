@@ -28,26 +28,21 @@ import (
 
 // An All iterator across a range of int64 values, from `max` to `min`.
 type Int64 struct {
-	uid      uint64
-	tags     graph.Tagger
+	Base
+
 	max, min int64
 	at       int64
-	result   graph.Value
 	runstats graph.IteratorStats
 }
 
 // Creates a new Int64 with the given range.
 func NewInt64(min, max int64) *Int64 {
 	return &Int64{
-		uid: NextUID(),
-		min: min,
-		max: max,
-		at:  min,
+		Base: NewBase(graph.All),
+		min:  min,
+		max:  max,
+		at:   min,
 	}
-}
-
-func (it *Int64) UID() uint64 {
-	return it.uid
 }
 
 // Start back at the beginning
@@ -55,37 +50,10 @@ func (it *Int64) Reset() {
 	it.at = it.min
 }
 
-func (it *Int64) Close() error {
-	return nil
-}
-
 func (it *Int64) Clone() graph.Iterator {
 	out := NewInt64(it.min, it.max)
 	out.tags.CopyFrom(it)
 	return out
-}
-
-func (it *Int64) Tagger() *graph.Tagger {
-	return &it.tags
-}
-
-// Fill the map based on the tags assigned to this iterator.
-func (it *Int64) TagResults(dst map[string]graph.Value) {
-	for _, tag := range it.tags.Tags() {
-		dst[tag] = it.Result()
-	}
-
-	for tag, value := range it.tags.Fixed() {
-		dst[tag] = value
-	}
-}
-
-func (it *Int64) Describe() graph.Description {
-	return graph.Description{
-		UID:  it.UID(),
-		Type: it.Type(),
-		Tags: it.tags.Tags(),
-	}
 }
 
 // Next() on an Int64 all iterator is a simple incrementing counter.
@@ -105,30 +73,6 @@ func (it *Int64) Next() bool {
 	return graph.NextLogOut(it, val, true)
 }
 
-func (it *Int64) Err() error {
-	return nil
-}
-
-func (it *Int64) Result() graph.Value {
-	return it.result
-}
-
-func (it *Int64) NextPath() bool {
-	return false
-}
-
-// No sub-iterators.
-func (it *Int64) SubIterators() []graph.Iterator {
-	return nil
-}
-
-// The number of elements in an Int64 is the size of the range.
-// The size is exact.
-func (it *Int64) Size() (int64, bool) {
-	Size := ((it.max - it.min) + 1)
-	return Size, true
-}
-
 // Contains() for an Int64 is merely seeing if the passed value is
 // withing the range, assuming the value is an int64.
 func (it *Int64) Contains(tsv graph.Value) bool {
@@ -142,9 +86,12 @@ func (it *Int64) Contains(tsv graph.Value) bool {
 	return graph.ContainsLogOut(it, v, false)
 }
 
-// The type of this iterator is an "all". This is important, as it puts it in
-// the class of "all iterators.
-func (it *Int64) Type() graph.Type { return graph.All }
+// The number of elements in an Int64 is the size of the range.
+// The size is exact.
+func (it *Int64) Size() (int64, bool) {
+	Size := ((it.max - it.min) + 1)
+	return Size, true
+}
 
 // There's nothing to optimize about this little iterator.
 func (it *Int64) Optimize() (graph.Iterator, bool) { return it, false }

@@ -38,8 +38,7 @@ type Keyer interface {
 }
 
 type Materialize struct {
-	uid         uint64
-	tags        graph.Tagger
+	Base
 	containsMap map[graph.Value]int
 	values      [][]result
 	actualSize  int64
@@ -49,20 +48,15 @@ type Materialize struct {
 	hasRun      bool
 	aborted     bool
 	runstats    graph.IteratorStats
-	err         error
 }
 
 func NewMaterialize(sub graph.Iterator) *Materialize {
 	return &Materialize{
-		uid:         NextUID(),
+		Base:        NewBase(graph.Materialize),
 		containsMap: make(map[graph.Value]int),
 		subIt:       sub,
 		index:       -1,
 	}
-}
-
-func (it *Materialize) UID() uint64 {
-	return it.uid
 }
 
 func (it *Materialize) Reset() {
@@ -75,10 +69,6 @@ func (it *Materialize) Close() error {
 	it.values = nil
 	it.hasRun = false
 	return it.subIt.Close()
-}
-
-func (it *Materialize) Tagger() *graph.Tagger {
-	return &it.tags
 }
 
 func (it *Materialize) TagResults(dst map[string]graph.Value) {
@@ -127,9 +117,6 @@ func (it *Materialize) Describe() graph.Description {
 		Iterator: &primary,
 	}
 }
-
-// Register this iterator as a Materialize iterator.
-func (it *Materialize) Type() graph.Type { return graph.Materialize }
 
 func (it *Materialize) Result() graph.Value {
 	if it.aborted {
@@ -209,10 +196,6 @@ func (it *Materialize) Next() bool {
 		return graph.NextLogOut(it, nil, false)
 	}
 	return graph.NextLogOut(it, it.Result(), true)
-}
-
-func (it *Materialize) Err() error {
-	return it.err
 }
 
 func (it *Materialize) Contains(v graph.Value) bool {

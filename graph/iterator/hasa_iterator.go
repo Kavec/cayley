@@ -44,30 +44,23 @@ import (
 // a primary subiterator, a direction in which the quads for that subiterator point,
 // and a temporary holder for the iterator generated on Contains().
 type HasA struct {
-	uid       uint64
-	tags      graph.Tagger
+	Base
 	qs        graph.QuadStore
 	primaryIt graph.Iterator
 	dir       quad.Direction
 	resultIt  graph.Iterator
-	result    graph.Value
 	runstats  graph.IteratorStats
-	err       error
 }
 
 // Construct a new HasA iterator, given the quad subiterator, and the quad
 // direction for which it stands.
 func NewHasA(qs graph.QuadStore, subIt graph.Iterator, d quad.Direction) *HasA {
 	return &HasA{
-		uid:       NextUID(),
+		Base:      NewBase(graph.HasA),
 		qs:        qs,
-		primaryIt: subIt,
 		dir:       d,
+		primaryIt: subIt,
 	}
-}
-
-func (it *HasA) UID() uint64 {
-	return it.uid
 }
 
 // Return our sole subiterator.
@@ -80,10 +73,6 @@ func (it *HasA) Reset() {
 	if it.resultIt != nil {
 		it.resultIt.Close()
 	}
-}
-
-func (it *HasA) Tagger() *graph.Tagger {
-	return &it.tags
 }
 
 func (it *HasA) Clone() graph.Iterator {
@@ -110,13 +99,7 @@ func (it *HasA) Optimize() (graph.Iterator, bool) {
 
 // Pass the TagResults down the chain.
 func (it *HasA) TagResults(dst map[string]graph.Value) {
-	for _, tag := range it.tags.Tags() {
-		dst[tag] = it.Result()
-	}
-
-	for tag, value := range it.tags.Fixed() {
-		dst[tag] = value
-	}
+	it.Base.TagResults(dst)
 
 	it.primaryIt.TagResults(dst)
 }
@@ -218,14 +201,6 @@ func (it *HasA) Next() bool {
 	return graph.NextLogOut(it, val, true)
 }
 
-func (it *HasA) Err() error {
-	return it.err
-}
-
-func (it *HasA) Result() graph.Value {
-	return it.result
-}
-
 // GetStats() returns the statistics on the HasA iterator. This is curious. Next
 // cost is easy, it's an extra call or so on top of the subiterator Next cost.
 // ContainsCost involves going to the graph.QuadStore, iterating out values, and hoping
@@ -264,9 +239,6 @@ func (it *HasA) Close() error {
 
 	return err
 }
-
-// Register this iterator as a HasA.
-func (it *HasA) Type() graph.Type { return graph.HasA }
 
 func (it *HasA) Size() (int64, bool) {
 	return it.Stats().Size, false

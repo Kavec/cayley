@@ -26,19 +26,16 @@ import (
 )
 
 type Or struct {
-	uid               uint64
-	tags              graph.Tagger
+	Base
 	isShortCircuiting bool
 	internalIterators []graph.Iterator
 	itCount           int
 	currentIterator   int
-	result            graph.Value
-	err               error
 }
 
 func NewOr() *Or {
 	return &Or{
-		uid:               NextUID(),
+		Base:              NewBase(graph.Or),
 		internalIterators: make([]graph.Iterator, 0, 20),
 		currentIterator:   -1,
 	}
@@ -46,15 +43,11 @@ func NewOr() *Or {
 
 func NewShortCircuitOr() *Or {
 	return &Or{
-		uid:               NextUID(),
+		Base:              NewBase(graph.Or),
 		internalIterators: make([]graph.Iterator, 0, 20),
 		isShortCircuiting: true,
 		currentIterator:   -1,
 	}
-}
-
-func (it *Or) UID() uint64 {
-	return it.uid
 }
 
 // Reset all internal iterators
@@ -63,10 +56,6 @@ func (it *Or) Reset() {
 		sub.Reset()
 	}
 	it.currentIterator = -1
-}
-
-func (it *Or) Tagger() *graph.Tagger {
-	return &it.tags
 }
 
 func (it *Or) Clone() graph.Iterator {
@@ -91,13 +80,7 @@ func (it *Or) SubIterators() []graph.Iterator {
 // Overrides BaseIterator TagResults, as it needs to add it's own results and
 // recurse down it's subiterators.
 func (it *Or) TagResults(dst map[string]graph.Value) {
-	for _, tag := range it.tags.Tags() {
-		dst[tag] = it.Result()
-	}
-
-	for tag, value := range it.tags.Fixed() {
-		dst[tag] = value
-	}
+	it.Base.TagResults(dst)
 
 	it.internalIterators[it.currentIterator].TagResults(dst)
 }
@@ -154,14 +137,6 @@ func (it *Or) Next() bool {
 	}
 
 	return graph.NextLogOut(it, nil, false)
-}
-
-func (it *Or) Err() error {
-	return it.err
-}
-
-func (it *Or) Result() graph.Value {
-	return it.result
 }
 
 // Checks a value against the iterators, in order.
@@ -308,8 +283,5 @@ func (it *Or) Stats() graph.IteratorStats {
 	}
 
 }
-
-// Register this as an "or" graph.iterator.
-func (it *Or) Type() graph.Type { return graph.Or }
 
 var _ graph.Nexter = &Or{}

@@ -22,15 +22,12 @@ import (
 // The And iterator. Consists of a number of subiterators, the primary of which will
 // be Next()ed if next is called.
 type And struct {
-	uid               uint64
-	tags              graph.Tagger
+	Base
 	internalIterators []graph.Iterator
 	itCount           int
 	primaryIt         graph.Iterator
 	checkList         []graph.Iterator
-	result            graph.Value
 	runstats          graph.IteratorStats
-	err               error
 	qs                graph.QuadStore
 }
 
@@ -38,14 +35,10 @@ type And struct {
 // for QuadStore-specific optimizations, otherwise nil is acceptable.
 func NewAnd(qs graph.QuadStore) *And {
 	return &And{
-		uid:               NextUID(),
-		internalIterators: make([]graph.Iterator, 0, 20),
+		Base:              NewBase(graph.And),
 		qs:                qs,
+		internalIterators: make([]graph.Iterator, 0, 20),
 	}
-}
-
-func (it *And) UID() uint64 {
-	return it.uid
 }
 
 // Reset all internal iterators
@@ -58,20 +51,10 @@ func (it *And) Reset() {
 	it.checkList = nil
 }
 
-func (it *And) Tagger() *graph.Tagger {
-	return &it.tags
-}
-
 // An extended TagResults, as it needs to add it's own results and
 // recurse down it's subiterators.
 func (it *And) TagResults(dst map[string]graph.Value) {
-	for _, tag := range it.tags.Tags() {
-		dst[tag] = it.Result()
-	}
-
-	for tag, value := range it.tags.Fixed() {
-		dst[tag] = value
-	}
+	it.Base.TagResults(dst)
 
 	if it.primaryIt != nil {
 		it.primaryIt.TagResults(dst)
@@ -149,14 +132,6 @@ func (it *And) Next() bool {
 	}
 	it.err = it.primaryIt.Err()
 	return graph.NextLogOut(it, nil, false)
-}
-
-func (it *And) Err() error {
-	return it.err
-}
-
-func (it *And) Result() graph.Value {
-	return it.result
 }
 
 // Checks a value against the non-primary iterators, in order.
@@ -294,8 +269,5 @@ func (it *And) Close() error {
 
 	return err
 }
-
-// Register this as an "and" iterator.
-func (it *And) Type() graph.Type { return graph.And }
 
 var _ graph.Nexter = &And{}

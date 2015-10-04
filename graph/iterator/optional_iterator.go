@@ -33,24 +33,17 @@ import (
 // An optional iterator has the sub-constraint iterator we wish to be optional
 // and whether the last check we received was true or false.
 type Optional struct {
-	uid       uint64
-	tags      graph.Tagger
+	Base
 	subIt     graph.Iterator
 	lastCheck bool
-	result    graph.Value
-	err       error
 }
 
 // Creates a new optional iterator.
 func NewOptional(it graph.Iterator) *Optional {
 	return &Optional{
-		uid:   NextUID(),
+		Base:  NewBase(graph.Optional),
 		subIt: it,
 	}
-}
-
-func (it *Optional) UID() uint64 {
-	return it.uid
 }
 
 func (it *Optional) Reset() {
@@ -62,22 +55,10 @@ func (it *Optional) Close() error {
 	return it.subIt.Close()
 }
 
-func (it *Optional) Tagger() *graph.Tagger {
-	return &it.tags
-}
-
 func (it *Optional) Clone() graph.Iterator {
 	out := NewOptional(it.subIt.Clone())
 	out.tags.CopyFrom(it)
 	return out
-}
-
-func (it *Optional) Err() error {
-	return it.err
-}
-
-func (it *Optional) Result() graph.Value {
-	return it.result
 }
 
 // An optional iterator only has a next result if, (a) last time we checked
@@ -92,11 +73,6 @@ func (it *Optional) NextPath() bool {
 		return ok
 	}
 	return false
-}
-
-// No subiterators.
-func (it *Optional) SubIterators() []graph.Iterator {
-	return nil
 }
 
 // Contains() is the real hack of this iterator. It always returns true, regardless
@@ -118,9 +94,6 @@ func (it *Optional) TagResults(dst map[string]graph.Value) {
 	}
 	it.subIt.TagResults(dst)
 }
-
-// Registers the optional iterator.
-func (it *Optional) Type() graph.Type { return graph.Optional }
 
 func (it *Optional) Describe() graph.Description {
 	primary := it.subIt.Describe()

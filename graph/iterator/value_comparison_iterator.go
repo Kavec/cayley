@@ -43,19 +43,17 @@ const (
 )
 
 type Comparison struct {
-	uid    uint64
-	tags   graph.Tagger
-	subIt  graph.Iterator
-	op     Operator
-	val    interface{}
-	qs     graph.QuadStore
-	result graph.Value
-	err    error
+	Base
+	subIt     graph.Iterator
+	op        Operator
+	val       interface{}
+	qs        graph.QuadStore
+	lastCheck bool
 }
 
 func NewComparison(sub graph.Iterator, op Operator, val interface{}, qs graph.QuadStore) *Comparison {
 	return &Comparison{
-		uid:   NextUID(),
+		Base:  NewBase(graph.Comparison),
 		subIt: sub,
 		op:    op,
 		val:   val,
@@ -63,13 +61,10 @@ func NewComparison(sub graph.Iterator, op Operator, val interface{}, qs graph.Qu
 	}
 }
 
-func (it *Comparison) UID() uint64 {
-	return it.uid
-}
-
 // Here's the non-boilerplate part of the ValueComparison iterator. Given a value
 // and our operator, determine whether or not we meet the requirement.
 func (it *Comparison) doComparison(val graph.Value) bool {
+	it.lastCheck = false
 	nodeStr := it.qs.NameOf(val)
 	switch cVal := it.val.(type) {
 	case int:
@@ -78,16 +73,20 @@ func (it *Comparison) doComparison(val graph.Value) bool {
 		if err != nil {
 			return false
 		}
-		return RunIntOp(intVal, it.op, cInt)
+		it.lastCheck = RunIntOp(intVal, it.op, cInt)
+		return it.lastCheck
 	case int64:
 		intVal, err := strconv.ParseInt(nodeStr, 10, 64)
 		if err != nil {
 			return false
 		}
-		return RunIntOp(intVal, it.op, cVal)
+		it.lastCheck = RunIntOp(intVal, it.op, cVal)
+		return it.lastCheck
 	case string:
-		return RunStrOp(nodeStr, it.op, cVal)
+		it.lastCheck = RunStrOp(nodeStr, it.op, cVal)
+		return it.lastCheck
 	default:
+		it.lastCheck = true
 		return true
 	}
 }
@@ -130,10 +129,6 @@ func (it *Comparison) Reset() {
 	it.subIt.Reset()
 }
 
-func (it *Comparison) Tagger() *graph.Tagger {
-	return &it.tags
-}
-
 func (it *Comparison) Clone() graph.Iterator {
 	out := NewComparison(it.subIt.Clone(), it.op, it.val, it.qs)
 	out.tags.CopyFrom(it)
@@ -152,14 +147,6 @@ func (it *Comparison) Next() bool {
 	return false
 }
 
-func (it *Comparison) Err() error {
-	return it.err
-}
-
-func (it *Comparison) Result() graph.Value {
-	return it.result
-}
-
 func (it *Comparison) NextPath() bool {
 	for {
 		hasNext := it.subIt.NextPath()
@@ -173,11 +160,6 @@ func (it *Comparison) NextPath() bool {
 	}
 	it.result = it.subIt.Result()
 	return true
-}
-
-// No subiterators.
-func (it *Comparison) SubIterators() []graph.Iterator {
-	return nil
 }
 
 func (it *Comparison) Contains(val graph.Value) bool {
@@ -194,15 +176,11 @@ func (it *Comparison) Contains(val graph.Value) bool {
 // If we failed the check, then the subiterator should not contribute to the result
 // set. Otherwise, go ahead and tag it.
 func (it *Comparison) TagResults(dst map[string]graph.Value) {
-	for _, tag := range it.tags.Tags() {
-		dst[tag] = it.Result()
-	}
+	it.Base.TagResults(dst)
 
-	for tag, value := range it.tags.Fixed() {
-		dst[tag] = value
+	if it.lastCheck {
+		it.subIt.TagResults(dst)
 	}
-
-	it.subIt.TagResults(dst)
 }
 
 // Registers the value-comparison iterator.
@@ -218,8 +196,7 @@ func (it *Comparison) Describe() graph.Description {
 }
 
 // There's nothing to optimize, locally, for a value-comparison iterator.
-// Replace the underlying iterator if need be.
-// potentially replace it.
+// Replace the underlying iterator if need be and potentially replace it.
 func (it *Comparison) Optimize() (graph.Iterator, bool) {
 	newSub, changed := it.subIt.Optimize()
 	if changed {

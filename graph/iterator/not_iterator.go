@@ -7,25 +7,18 @@ import (
 // Not iterator acts like a complement for the primary iterator.
 // It will return all the vertices which are not part of the primary iterator.
 type Not struct {
-	uid       uint64
-	tags      graph.Tagger
+	Base
 	primaryIt graph.Iterator
 	allIt     graph.Iterator
-	result    graph.Value
 	runstats  graph.IteratorStats
-	err       error
 }
 
 func NewNot(primaryIt, allIt graph.Iterator) *Not {
 	return &Not{
-		uid:       NextUID(),
+		Base:      NewBase(graph.Not),
 		primaryIt: primaryIt,
 		allIt:     allIt,
 	}
-}
-
-func (it *Not) UID() uint64 {
-	return it.uid
 }
 
 // Reset resets the internal iterators and the iterator itself.
@@ -35,18 +28,8 @@ func (it *Not) Reset() {
 	it.allIt.Reset()
 }
 
-func (it *Not) Tagger() *graph.Tagger {
-	return &it.tags
-}
-
 func (it *Not) TagResults(dst map[string]graph.Value) {
-	for _, tag := range it.tags.Tags() {
-		dst[tag] = it.Result()
-	}
-
-	for tag, value := range it.tags.Fixed() {
-		dst[tag] = value
-	}
+	it.Base.TagResults(dst)
 
 	if it.primaryIt != nil {
 		it.primaryIt.TagResults(dst)
@@ -84,14 +67,6 @@ func (it *Not) Next() bool {
 	return graph.NextLogOut(it, nil, false)
 }
 
-func (it *Not) Err() error {
-	return it.err
-}
-
-func (it *Not) Result() graph.Value {
-	return it.result
-}
-
 // Contains checks whether the passed value is part of the primary iterator's
 // complement. For a valid value, it updates the Result returned by the iterator
 // to the value itself.
@@ -113,12 +88,6 @@ func (it *Not) Contains(val graph.Value) bool {
 	return graph.ContainsLogOut(it, val, true)
 }
 
-// NextPath checks whether there is another path. Not applicable, hence it will
-// return false.
-func (it *Not) NextPath() bool {
-	return false
-}
-
 // Close closes the primary and all iterators.  It closes all subiterators
 // it can, but returns the first error it encounters.
 func (it *Not) Close() error {
@@ -131,8 +100,6 @@ func (it *Not) Close() error {
 
 	return err
 }
-
-func (it *Not) Type() graph.Type { return graph.Not }
 
 func (it *Not) Optimize() (graph.Iterator, bool) {
 	// TODO - consider wrapping the primaryIt with a MaterializeIt
